@@ -1,0 +1,9 @@
+21:05:07 - INFO - Anonymized telemetry enabled. See                     https://docs.trychroma.com/telemetry for more information.
+21:05:07 - INFO - Connected to ChromaDB at 'chroma_db', collection: 'all_documents'
+21:05:25 - INFO - Searching for: 'What is the purpose of the NASA Systems Engineering Handbook?'
+21:05:25 - INFO - Retrieved 6 relevant chunks: ['21', '27', '20', '807', '805', '28']
+21:05:25 - INFO - Sending request to Ollama (model: gemma3:4b-it-qat)...
+21:05:58 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+21:05:58 - INFO - Received response from LLM.
+21:05:58 - INFO - Finalized response with 3 unique citations.
+21:06:04 - INFO - Session ended by user.
