@@ -6,7 +6,7 @@ logging.basicConfig(filename="ingest.log", filemode='w', level=logging.INFO, for
 logger = logging.getLogger(__name__)
 
 class DocumentManager:
-    def __init__(self, url_path: str = os.getenv("URL_PATH"), storage_dir: str = os.getenv("STORAGE_DIR")):
+    def __init__(self, url_path: str = os.getenv("URL_PATH",''), storage_dir: str = os.getenv("STORAGE_DIR",'')):
         self.storage_dir = storage_dir
         os.makedirs(self.storage_dir, exist_ok=True)
         try:
@@ -44,9 +44,8 @@ class Processor:
     def process_pdf(self, file_path: str, filename: str):
         logger.info(f"Processing PDF: {filename}")
         try:
-            doc = pymupdf.open(file_path)
             chunk_count = 0
-            for page_idx, page in enumerate(doc):
+            for page_idx, page in enumerate(pymupdf.open(file_path)): # type: ignore
                 offset = 0
                 for chunk in self.splitter.split_text(page.get_text()):
                     chunk_count += 1
@@ -56,7 +55,7 @@ class Processor:
             logger.error(f"Error processing {filename}: {e}")
 
 class VectorStore:
-    def __init__(self, db_dir: str = os.getenv("DB_DIR"), collection_name: str = os.getenv("COLLECTION_NAME")):
+    def __init__(self, db_dir: str = os.getenv("DB_DIR",''), collection_name: str = os.getenv("COLLECTION_NAME",'')):
         self.client = chromadb.PersistentClient(path=db_dir)
         try:
             logger.info(f"Initializing collection: {collection_name}")

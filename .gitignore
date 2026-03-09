@@ -15,7 +15,8 @@ chroma_db/
 docs/
 
 # Secrets and local config
-.log
+ingest.log
+ask.log
 
 # OS generated files
 .DS_Store

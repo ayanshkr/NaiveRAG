@@ -1,47 +1,41 @@
-20:22:34 - INFO - --- Starting Ingestion Process ---
-20:22:34 - INFO - Loaded 10 URLs from urls.txt
-20:22:34 - INFO - Anonymized telemetry enabled. See                     https://docs.trychroma.com/telemetry for more information.
-20:22:34 - INFO - Initializing collection: all_documents
-20:22:34 - ERROR - Error: Collection [all_documents] does not exist
-20:22:34 - INFO - Collection all_documents created.
-20:22:34 - INFO - Downloading: https://www.nasa.gov/wp-content/uploads/2018/09/nasa_systems_engineering_handbook_0.pdf
-20:22:35 - INFO - Successfully saved: nasa_systems_engineering_handbook_0.pdf
-20:22:35 - INFO - Downloading: https://www.nasa.gov/wp-content/uploads/2020/11/nasa_schedule_management_hand_book.pdf
-20:22:37 - INFO - Successfully saved: nasa_schedule_management_hand_book.pdf
-20:22:37 - INFO - Downloading: https://www.nasa.gov/wp-content/uploads/2024/09/ppc-handbook-1-5-17.pdf
-20:22:38 - INFO - Successfully saved: ppc-handbook-1-5-17.pdf
-20:22:38 - INFO - Downloading: https://ntrs.nasa.gov/api/citations/20220009501/downloads/PM%20Handbook_June%202024.pdf
-20:22:41 - INFO - Successfully saved: PM%20Handbook_June%202024.pdf
-20:22:41 - INFO - Downloading: https://standards.nasa.gov/sites/default/files/standards/KSC/F/0/ksc-df-107_rev_f_07082017.pdf
-20:22:42 - INFO - Successfully saved: ksc-df-107_rev_f_07082017.pdf
-20:22:42 - INFO - Downloading: https://ntrs.nasa.gov/api/citations/19930013813/downloads/19930013813.pdf
-20:22:44 - INFO - Successfully saved: 19930013813.pdf
-20:22:44 - INFO - Downloading: https://ntrs.nasa.gov/api/citations/20230001306/downloads/SRB%20Handbook%20Official%20Rev%20C%201-24-23_Final%20v2.pdf
-20:22:55 - ERROR - Failed to download https://ntrs.nasa.gov/api/citations/20230001306/downloads/SRB%20Handbook%20Official%20Rev%20C%201-24-23_Final%20v2.pdf: HTTPSConnectionPool(host='ntrs.nasa.gov', port=443): Read timed out. (read timeout=10)
-20:22:55 - INFO - Downloading: https://standards.nasa.gov/sites/default/files/standards/NASA/Baseline/0/2020_04_01_nasa_hdbk_1004_approved.pdf
-20:22:56 - INFO - Successfully saved: 2020_04_01_nasa_hdbk_1004_approved.pdf
-20:22:56 - INFO - Downloading: https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-53r5.pdf
-20:22:58 - INFO - Successfully saved: NIST.SP.800-53r5.pdf
-20:22:58 - INFO - Downloading: https://nvlpubs.nist.gov/nistpubs/legacy/sp/nistspecialpublication800-30r1.pdf
-20:22:59 - INFO - Successfully saved: nistspecialpublication800-30r1.pdf
-20:22:59 - INFO - Processing PDF: nasa_systems_engineering_handbook_0.pdf
-20:23:16 - INFO - Generated 933 chunks from nasa_systems_engineering_handbook_0.pdf
-20:23:16 - INFO - Processing PDF: nasa_schedule_management_hand_book.pdf
-20:23:18 - INFO - Generated 1073 chunks from nasa_schedule_management_hand_book.pdf
-20:23:19 - INFO - Processing PDF: ppc-handbook-1-5-17.pdf
-20:23:21 - INFO - Generated 936 chunks from ppc-handbook-1-5-17.pdf
-20:23:21 - INFO - Processing PDF: PM%20Handbook_June%202024.pdf
-20:23:26 - INFO - Generated 1421 chunks from PM%20Handbook_June%202024.pdf
-20:23:26 - INFO - Processing PDF: ksc-df-107_rev_f_07082017.pdf
-20:23:27 - INFO - Generated 355 chunks from ksc-df-107_rev_f_07082017.pdf
-20:23:27 - INFO - Processing PDF: 19930013813.pdf
-20:23:27 - INFO - Generated 121 chunks from 19930013813.pdf
-20:23:27 - INFO - Processing PDF: 2020_04_01_nasa_hdbk_1004_approved.pdf
-20:23:29 - INFO - Generated 582 chunks from 2020_04_01_nasa_hdbk_1004_approved.pdf
-20:23:29 - INFO - Processing PDF: NIST.SP.800-53r5.pdf
-20:31:41 - INFO - Uploaded batch 0 (5461 chunks).
-20:31:44 - INFO - Generated 1825 chunks from NIST.SP.800-53r5.pdf
-20:31:44 - INFO - Processing PDF: nistspecialpublication800-30r1.pdf
-20:31:44 - INFO - Generated 366 chunks from nistspecialpublication800-30r1.pdf
-20:33:54 - INFO - Uploaded batch 1 (2151 chunks).
-20:33:54 - INFO - --- Ingestion Complete ---
+22:00:31 - INFO - --- Starting Ingestion Process ---
+22:00:31 - INFO - Loaded 10 URLs from urls.txt
+22:00:31 - INFO - Anonymized telemetry enabled. See                     https://docs.trychroma.com/telemetry for more information.
+22:00:37 - INFO - Initializing collection: all_documents
+22:00:37 - ERROR - Error: Collection [all_documents] does not exist
+22:00:37 - INFO - Collection all_documents created.
+22:00:37 - INFO - Downloading: https://www.nasa.gov/wp-content/uploads/2018/09/nasa_systems_engineering_handbook_0.pdf
+22:00:37 - INFO - Successfully saved: nasa_systems_engineering_handbook_0.pdf
+22:00:37 - INFO - Downloading: https://www.nasa.gov/wp-content/uploads/2020/11/nasa_schedule_management_hand_book.pdf
+22:00:39 - INFO - Successfully saved: nasa_schedule_management_hand_book.pdf
+22:00:39 - INFO - Downloading: https://www.nasa.gov/wp-content/uploads/2024/09/ppc-handbook-1-5-17.pdf
+22:00:40 - INFO - Successfully saved: ppc-handbook-1-5-17.pdf
+22:00:40 - INFO - Downloading: https://ntrs.nasa.gov/api/citations/20220009501/downloads/PM%20Handbook_June%202024.pdf
+22:00:43 - INFO - Successfully saved: PM%20Handbook_June%202024.pdf
+22:00:43 - INFO - Downloading: https://standards.nasa.gov/sites/default/files/standards/KSC/F/0/ksc-df-107_rev_f_07082017.pdf
+22:00:43 - INFO - Successfully saved: ksc-df-107_rev_f_07082017.pdf
+22:00:43 - INFO - Downloading: https://ntrs.nasa.gov/api/citations/19930013813/downloads/19930013813.pdf
+22:00:45 - INFO - Successfully saved: 19930013813.pdf
+22:00:45 - INFO - Downloading: https://ntrs.nasa.gov/api/citations/20230001306/downloads/SRB%20Handbook%20Official%20Rev%20C%201-24-23_Final%20v2.pdf
+22:00:48 - INFO - Successfully saved: SRB%20Handbook%20Official%20Rev%20C%201-24-23_Final%20v2.pdf
+22:00:48 - INFO - Downloading: https://standards.nasa.gov/sites/default/files/standards/NASA/Baseline/0/2020_04_01_nasa_hdbk_1004_approved.pdf
+22:00:48 - INFO - Successfully saved: 2020_04_01_nasa_hdbk_1004_approved.pdf
+22:00:48 - INFO - Downloading: https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-53r5.pdf
+22:00:49 - INFO - Successfully saved: NIST.SP.800-53r5.pdf
+22:00:49 - INFO - Downloading: https://nvlpubs.nist.gov/nistpubs/legacy/sp/nistspecialpublication800-30r1.pdf
+22:00:50 - INFO - Successfully saved: nistspecialpublication800-30r1.pdf
+22:00:50 - INFO - Processing PDF: nasa_systems_engineering_handbook_0.pdf
+22:00:56 - INFO - Generated 933 chunks from nasa_systems_engineering_handbook_0.pdf
+22:00:56 - INFO - Processing PDF: nasa_schedule_management_hand_book.pdf
+22:00:57 - INFO - Generated 1073 chunks from nasa_schedule_management_hand_book.pdf
+22:00:57 - INFO - Processing PDF: ppc-handbook-1-5-17.pdf
+22:00:57 - INFO - Generated 936 chunks from ppc-handbook-1-5-17.pdf
+22:00:57 - INFO - Processing PDF: PM%20Handbook_June%202024.pdf
+22:00:59 - INFO - Generated 1421 chunks from PM%20Handbook_June%202024.pdf
+22:00:59 - INFO - Processing PDF: ksc-df-107_rev_f_07082017.pdf
+22:00:59 - INFO - Generated 355 chunks from ksc-df-107_rev_f_07082017.pdf
+22:00:59 - INFO - Processing PDF: 19930013813.pdf
+22:00:59 - INFO - Generated 121 chunks from 19930013813.pdf
+22:00:59 - INFO - Processing PDF: SRB%20Handbook%20Official%20Rev%20C%201-24-23_Final%20v2.pdf
+22:00:59 - INFO - Generated 283 chunks from SRB%20Handbook%20Official%20Rev%20C%201-24-23_Final%20v2.pdf
+22:00:59 - INFO - Processing PDF: 2020_04_01_nasa_hdbk_1004_approved.pdf

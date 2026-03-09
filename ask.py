@@ -6,7 +6,7 @@ logging.basicConfig(filename="ask.log", filemode='w', level=logging.INFO, format
 logger = logging.getLogger(__name__)
 
 class RAGSearcher:
-    def __init__(self, db_path: str = os.getenv("DB_DIR"), collection_name: str = os.getenv("COLLECTION_NAME"), model: str = os.getenv("MODEL")):
+    def __init__(self, db_path: str = os.getenv("DB_DIR",''), collection_name: str = os.getenv("COLLECTION_NAME",''), model: str = os.getenv("MODEL",'')):
         self.model = model
         self.system_prompt = "Answer the question based only on the following context. Cite each piece of information using the format [chunk X]. If there is not enough information, answer 'Not found in the provided PDFs.'"
         try:
@@ -22,7 +22,7 @@ class RAGSearcher:
         results = self.collection.query(query_texts=[question], n_results=n_results)
         retrieved_ids = results.get('ids', [[]])[0]
         logger.info(f"Retrieved {len(retrieved_ids)} relevant chunks: {retrieved_ids}")
-        return results
+        return dict(results)
 
     def generate_answer(self, question: str, context: str) -> str:
         messages = [{'role': 'system', 'content': self.system_prompt},{'role': 'user', 'content': f"CONTEXT:\n{context}\n\nQUESTION: {question}"}]
