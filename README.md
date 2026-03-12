@@ -10,15 +10,15 @@ Generation (RAG) system for technical document analysis.
 The system is controlled via the following environment 
 variables. Ensure these are set in your .env file:
 
-PROPERTY           | VALUE               | PURPOSE
--------------------|---------------------|------------------
-URL_PATH           | "urls.txt"          | Source PDF list
-STORAGE_DIR        | "docs"              | PDF cache folder
-CHUNK_SIZE         | 1200                | Text segment size
-CHUNK_OVERLAP      | 200                 | Context overlap
-DB_DIR             | "chroma_db"         | Vector DB path
-COLLECTION_NAME    | "all_documents"     | DB index name
-MODEL              | "gemma3:4b-it-qat"  | Local LLM model
+PROPERTY           | VALUE               | PURPOSE          | REASON FOR DEFAULT                                                   |
+-------------------|---------------------|------------------|----------------------------------------------------------------------|
+URL_PATH           | "urls.txt"          | Source PDF list  | Short name and long pdfs with serious subjects for testing           |
+STORAGE_DIR        | "docs"              | PDF cache folder | Short and descriptive name                                           |
+CHUNK_SIZE         | 1200                | Text segment size| Enough to capture units of information while not overwhelming a user |
+CHUNK_OVERLAP      | 200                 | Context overlap  | Enough to break distinct ideas while not breaking contextual units   |
+DB_DIR             | "chroma_db"         | Vector DB path   | Short and descriptive name                                           |
+COLLECTION_NAME    | "all_documents"     | DB index name    | Short and descriptive name                                           |
+MODEL              | "gemma3:4b-it-qat"  | Local LLM model  | Context window can fit one prompt and runs on most computers decently|
 
 ------------------------------------------------------------
 2. INSTALLATION & SETUP
