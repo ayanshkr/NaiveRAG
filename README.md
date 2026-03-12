@@ -12,16 +12,44 @@ variables. Ensure these are set in your .env file:
 
 PROPERTY           | VALUE               | PURPOSE          | REASON FOR DEFAULT                                                   |
 -------------------|---------------------|------------------|----------------------------------------------------------------------|
-URL_PATH           | "urls.txt"          | Source PDF list  | Short name and long pdfs with serious subjects for testing           |
-STORAGE_DIR        | "docs"              | PDF cache folder | Short and descriptive name                                           |
-CHUNK_SIZE         | 1200                | Text segment size| Enough to capture units of information while not overwhelming a user |
-CHUNK_OVERLAP      | 200                 | Context overlap  | Enough to break distinct ideas while not breaking contextual units   |
-DB_DIR             | "chroma_db"         | Vector DB path   | Short and descriptive name                                           |
-COLLECTION_NAME    | "all_documents"     | DB index name    | Short and descriptive name                                           |
-MODEL              | "gemma3:4b-it-qat"  | Local LLM model  | Context window can fit one prompt and runs on most computers decently|
+URL_PATH           | "urls.txt"          | Source PDF list  | Targets high-density technical NASA/NIST standards.                  |
+STORAGE_DIR        | "docs"              | PDF cache folder | Local repository for downloaded technical PDFs.                      |
+CHUNK_SIZE         | 1200                | Text segment size| Captures complex requirements without losing local context.          |
+CHUNK_OVERLAP      | 200                 | Context overlap  | Maintains continuity for concepts spanning across pages.              |
+DB_DIR             | "chroma_db"         | Vector DB path   | Persistent local storage for document embeddings.                     |
+COLLECTION_NAME    | "all_documents"     | DB index name    | Standard namespace for the vectorized handbook library.              |
+MODEL              | "gemma3:4b-it-qat"  | Local LLM model  | Highly efficient for strict citation following in a local environment.|
 
 ------------------------------------------------------------
-2. INSTALLATION & SETUP
+2. TECHNICAL DESIGN DECISIONS
+------------------------------------------------------------
+These engineering choices prioritize precision and 
+verifiability in technical domains:
+
+[1] PAGE-AWARE INGESTION:
+    `ingest.py` utilizes PyMuPDF to extract text on a per-page 
+    basis. This allows the system to bake the 'page' number 
+    directly into the vector metadata for verifiable citations.
+
+[2] CONTEXTUAL CHUNKING:
+    A 1200-character chunk size was selected to capture 
+    complete technical units (like safety requirements) 
+    while the 200-character overlap ensures concepts are not 
+    severed at arbitrary character limits.
+
+[3] REGEX-ANCHORED CITATIONS:
+    `ask.py` does not rely on LLM memory for sourcing. It 
+    forces the model to use [chunk X] placeholders, which 
+    the Python backend then maps to real metadata via 
+    regular expressions to prevent source hallucination.
+
+[4] BATCHED VECTORIZATION:
+    To handle massive PDF libraries, the system uses 
+    itertools.batched (size 5461) to commit data to 
+    ChromaDB, preventing memory overflows during ingestion.
+
+------------------------------------------------------------
+3. INSTALLATION & SETUP
 ------------------------------------------------------------
 Ensure you have Python 3.10+ and Ollama installed.
 
@@ -32,7 +60,7 @@ Ensure you have Python 3.10+ and Ollama installed.
     $ ollama pull gemma3:4b-it-qat
 
 ------------------------------------------------------------
-3. USAGE FLOW
+4. USAGE FLOW
 ------------------------------------------------------------
 
 PHASE A: INGESTION
@@ -48,22 +76,15 @@ Run the command: $ python ask.py
 - The AI generates an answer with page-level citations.
 
 ------------------------------------------------------------
-4. DATA SOURCES (urls.txt)
-------------------------------------------------------------
-This system is pre-configured to handle technical standards 
-from NASA and NIST, including:
-- NASA Systems Engineering Handbook
-- NIST SP 800-53 Security Controls
-- NASA Schedule Management Standards
-
-------------------------------------------------------------
 5. LOGGING & DEBUGGING
 ------------------------------------------------------------
 All activity is recorded in 'ingest.log' and 'ask.log' respectively.
-- Check this file if a download fails.
-- Check this file to verify LLM citation accuracy.
+- Check ingest.log if a download fails or text extraction stalls.
+- Check ask.log to verify the precision of LLM source mapping.
 
-### NaiveRAG Data Flow Architecture
+------------------------------------------------------------
+6. DATA FLOW ARCHITECTURE
+------------------------------------------------------------
 
 ```mermaid
 graph LR
@@ -80,7 +101,7 @@ graph LR
         USER[User Prompt]:::source
     end
 
-    subgraph Ingest [ingest.py]
+    subgraph Ingest [ingest.py Engine]
         direction TB
         D_MGR[DocumentManager]:::logic
         PROC[Processor]:::logic
@@ -92,7 +113,7 @@ graph LR
         CHROMA[(ChromaDB)]:::destination
     end
 
-    subgraph Query [ask.py]
+    subgraph Query [ask.py Engine]
         direction TB
         SRCH[RAGSearcher]:::logic
         C_PROC[CitationProcessor]:::logic
@@ -100,8 +121,6 @@ graph LR
     end
 
     %% --- Data Flow Connections ---
-
-    %% Ingestion Path
     U_TXT -- "Raw URL List" --> D_MGR
     ENV -- "CHUNK_SIZE / MODEL" --> D_MGR & PROC & SRCH & OLLAMA
     
@@ -114,7 +133,6 @@ graph LR
     
     D_MGR -. "Success/Error Logs" .-> I_LOG[ingest.log]:::logs
 
-    %% Query Path
     USER -- "Plaintext Question" --> SRCH
     CHROMA -- "Top 6 Chunks + Metadata" --> SRCH
     
