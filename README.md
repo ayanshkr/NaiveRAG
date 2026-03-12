@@ -62,3 +62,66 @@ from NASA and NIST, including:
 All activity is recorded in 'ingest.log' and 'ask.log' respectively.
 - Check this file if a download fails.
 - Check this file to verify LLM citation accuracy.
+
+### NaiveRAG Data Flow Architecture
+
+```mermaid
+graph LR
+    %% --- Style Definitions ---
+    classDef source fill:#f472b6,stroke:#be185d,stroke-width:2px,color:#fff;
+    classDef logic fill:#38bdf8,stroke:#0369a1,stroke-width:2px,color:#fff;
+    classDef destination fill:#4ade80,stroke:#15803d,stroke-width:2px,color:#fff;
+    classDef logs fill:#64748b,stroke:#334155,stroke-dasharray: 5 5,color:#fff;
+
+    %% --- Components ---
+    subgraph Sources [Data Sources]
+        U_TXT[urls.txt]:::source
+        ENV[.env]:::source
+        USER[User Prompt]:::source
+    end
+
+    subgraph Ingest [ingest.py]
+        direction TB
+        D_MGR[DocumentManager]:::logic
+        PROC[Processor]:::logic
+        V_STORE[VectorStore]:::logic
+    end
+
+    subgraph Storage [Storage]
+        PDFS[docs/ folder]:::destination
+        CHROMA[(ChromaDB)]:::destination
+    end
+
+    subgraph Query [ask.py]
+        direction TB
+        SRCH[RAGSearcher]:::logic
+        C_PROC[CitationProcessor]:::logic
+        OLLAMA[Ollama API]:::logic
+    end
+
+    %% --- Data Flow Connections ---
+
+    %% Ingestion Path
+    U_TXT -- "Raw URL List" --> D_MGR
+    ENV -- "CHUNK_SIZE / MODEL" --> D_MGR & PROC & SRCH & OLLAMA
+    
+    D_MGR -- "Binary Stream" --> PDFS
+    D_MGR -- "Local File Path" --> PROC
+    
+    PROC -- "Page Text + Metadata" --> SPLIT[Text Splitter]:::logic
+    SPLIT -- "1200 Char Chunks" --> V_STORE
+    V_STORE -- "Batch ID + Vector + Meta" --> CHROMA
+    
+    D_MGR -. "Success/Error Logs" .-> I_LOG[ingest.log]:::logs
+
+    %% Query Path
+    USER -- "Plaintext Question" --> SRCH
+    CHROMA -- "Top 6 Chunks + Metadata" --> SRCH
+    
+    SRCH -- "Context Block List" --> C_PROC
+    C_PROC -- "Structured System Prompt" --> OLLAMA
+    
+    OLLAMA -- "Raw String w/ Chunk ID" --> C_PROC
+    C_PROC -- "Page-Verified Answer" --> TERM[Terminal Display]:::destination
+    
+    C_PROC -. "Mapping Stats" .-> A_LOG[ask.log]:::logs
