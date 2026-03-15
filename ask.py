@@ -1,106 +1,71 @@
-import chromadb, ollama, os, re, logging
+import chromadb, logging, ollama, os, re, time
+from chromadb.utils import embedding_functions
 from typing import Dict, Any
 from dotenv import load_dotenv
+
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
 load_dotenv()
 logging.basicConfig(filename="ask.log", filemode='w', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%H:%M:%S')
 logger = logging.getLogger(__name__)
 
 class RAGSearcher:
-    def __init__(self, db_path: str = os.getenv("DB_DIR",''), collection_name: str = os.getenv("COLLECTION_NAME",''), model: str = os.getenv("MODEL",'')):
-        self.model = model
-        self.system_prompt = "Answer the question based only on the following context. Cite each piece of information using the format [chunk X]. If there is not enough information, answer 'Not found in the provided PDFs.'"
-        try:
-            self.client = chromadb.PersistentClient(path=db_path)
-            self.collection = self.client.get_collection(collection_name)
-            logger.info(f"Connected to ChromaDB at '{db_path}', collection: '{collection_name}'")
-        except Exception as e:
-            logger.error(f"Failed to connect to Vector Store: {e}")
-            raise
+    def __init__(self, db: str = os.getenv("DB_DIR",''), cl: str = os.getenv("COLLECTION_NAME",''), m: str = os.getenv("MODEL",'')):
+        self.m, self.p = m, "Answer based only on context. Cite as [chunk X]. If missing, say 'Not found in the provided PDFs.'"
+        logger.info(f"Init Searcher | Model: {m} | DB: {db}")
+        ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=os.getenv("EMBEDDING_MODEL",''), device="cuda")
+        self.coll = chromadb.PersistentClient(path=db).get_collection(cl, embedding_function=ef) # type: ignore
+        logger.info("Searcher ready.")
 
-    def retrieve(self, question: str, n_results: int = 6) -> Dict[str, Any]:
-        logger.info(f"Searching for: '{question}'")
-        results = self.collection.query(query_texts=[question], n_results=n_results)
-        retrieved_ids = results.get('ids', [[]])[0]
-        logger.info(f"Retrieved {len(retrieved_ids)} relevant chunks: {retrieved_ids}")
-        return dict(results)
+    def retrieve(self, q: str, n: int = 6) -> Dict[str, Any]:
+        t = time.time()
+        res = self.coll.query(query_texts=[q], n_results=n)
+        logger.info(f"Retrieval: {len(res['ids'][0])} chunks in {time.time()-t:.4f}s")
+        return dict(res)
 
-    def generate_answer(self, question: str, context: str) -> str:
-        messages = [{'role': 'system', 'content': self.system_prompt},{'role': 'user', 'content': f"CONTEXT:\n{context}\n\nQUESTION: {question}"}]
-        logger.info(f"Sending request to Ollama (model: {self.model})...")
+    def generate(self, q: str, ctx: str) -> str:
+        msgs = [{'role': 'system', 'content': self.p}, {'role': 'user', 'content': f"CONTEXT:\n{ctx}\n\nQUESTION: {q}"}]
+        logger.info(f"Ollama Start: {self.m} | Context: {len(ctx)} chars")
+        t = time.time()
         try:
-            response = ollama.chat(model=self.model, messages=messages)
-            logger.info("Received response from LLM.")
-            return response['message']['content']
+            r = ollama.chat(model=self.m, messages=msgs, options={'keep_alive': '10m'})
+            d, ec, ed = time.time()-t, r.get('eval_count', 0), r.get('eval_duration', 1)/1e9
+            logger.info(f"Ollama End | Total: {d:.2f}s | Pre-fill: {r.get('prompt_eval_duration',0)/1e9:.2f}s | {ec} tks @ {ec/ed:.2f} tps")
+            return r['message']['content']
         except Exception as e:
-            logger.error(f"Ollama generation failed: {e}")
-            return "Error: Could not generate an answer."
+            logger.error(f"Ollama failed: {e}"); return "Error: Could not generate answer."
 
 class CitationProcessor:
-    def __init__(self, search_results: Dict[str, Any]):
-        self.results = search_results
-        self.ids = search_results['ids'][0]
-        self.metas = search_results['metadatas'][0]
-        self.docs = search_results['documents'][0]
+    def __init__(self, res: Dict[str, Any]): self.ids, self.mts, self.dcs = res['ids'][0], res['metadatas'][0], res['documents'][0]
 
-    def format_context(self) -> str:
-        return '\n\n'.join([f"Context from [Chunk {id}]:\n{doc}" for id, doc in zip(self.ids, self.docs)])
+    def format_ctx(self) -> str: return '\n\n'.join([f"Context from [chunk {i}]:\n{d}" for i, d in zip(self.ids, self.dcs)])
 
-    def finalize_response(self, raw_text: str):
-        new_response = raw_text
-        used_citations = []
-        matches = list(re.finditer(r'\[?[Cc]hunk\s+(\d+)[^\]]*\]?', raw_text))
-        for match in sorted(matches, key=lambda x: x.start(), reverse=True):
-            chunk_id = match.group(1)
+    def finalize(self, raw: str):
+        res, used = raw, []
+        for m in sorted(re.finditer(r'\[?[Cc]hunk\s+(\d+)[^\]]*\]?', raw), key=lambda x: x.start(), reverse=True):
+            cid = m.group(1)
             try:
-                idx = self.ids.index(chunk_id)
-                meta = self.metas[idx]
-                citation_str = f"[{meta['doc_name']}, p.{meta['page']}, chunk:{chunk_id}]"
-                new_response = new_response[:match.start()] + citation_str + new_response[match.end():]
-                if citation_str not in used_citations:
-                    used_citations.append(citation_str)
-            except (ValueError, KeyError):
-                logger.warning(f"LLM cited Chunk ID '{chunk_id}' but it wasn't in the retrieved context.")
-                new_response = new_response[:match.start()] + "[Invalid Citation]" + new_response[match.end():]
-        logger.info(f"Finalized response with {len(used_citations)} unique citations.")
-        return new_response, used_citations
+                mt = self.mts[self.ids.index(cid)]; ct = f"[{mt['doc_name']}, p.{mt['page']}, chunk:{cid}]"
+                res = res[:m.start()] + ct + res[m.end():]
+                if ct not in used: used.append(ct)
+            except: res = res[:m.start()] + "[Invalid Citation]" + res[m.end():]
+        logger.info(f"Finalized: {len(used)} citations."); return res, used
 
 def main():
-    try:
-        searcher = RAGSearcher()
-    except Exception as e:
-        logger.error(f"An unexpected error occurred when initializing RAG Searcher: {e}")
-        return
+    try: s = RAGSearcher()
+    except Exception as e: return print(f"Init error: {e}")
     n = 1
     while True:
-        try:
-            question = input(f"\n### Question {n}: ").strip()
-            if not question:
-                logger.info("Session ended by user.")
-                break
-            results = searcher.retrieve(question)
-            processor = CitationProcessor(results)
-            context = processor.format_context()
-            raw_answer = searcher.generate_answer(question, context)
-            final_text, citations_list = processor.finalize_response(raw_answer)
-            print("\n" + "="*50)
-            print(f"**Answer:**\n{final_text.strip()}")
-            if citations_list:
-                print("\n**Citations:**")
-                for cit in citations_list:
-                    print(f"• {cit}")
-            print("\n**Retrieved Evidence:**")
-            for i, (chunk_id, meta, doc) in enumerate(zip(processor.ids, processor.metas, processor.docs), 1):
-                cit = f"[{meta['doc_name']}, p.{meta['page']}, chunk:{chunk_id}]"
-                status = " [USED]" if cit in citations_list else " [UNUSED]"
-                print(f"{i}. {cit}{status}")
-                print(f"   \"{doc[:120].replace('\n', ' ')}...\"")
-            print("="*50)
-            n += 1
-        except KeyboardInterrupt:
-            print("\nExiting...")
-            break
-        except Exception as e:
-            logger.exception(f"An unexpected error occurred during Question {n}: {e}")
+        if not (q := input(f"\n### Question {n}: ").strip()): break
+        res = s.retrieve(q); prc = CitationProcessor(res)
+        txt, cits = prc.finalize(s.generate(q, prc.format_ctx()))
+        print(f"\n{'='*50}\n**Answer:**\n{txt.strip()}")
+        if cits:
+            print("\n**Citations:**")
+            for c in cits: print(f"• {c}")
+        print("\n**Retrieved Evidence:**")
+        for i, (cid, mt, dc) in enumerate(zip(prc.ids, prc.mts, prc.dcs), 1):
+            ct = f"[{mt['doc_name']}, p.{mt['page']}, chunk:{cid}]"
+            print(f"{i}. {ct}{' [USED]' if any(ct in c for c in cits) else ' [UNUSED]'}\n   \"{dc[:120].replace(chr(10), ' ')}...\"")
+        print("="*50); n += 1
 
-if __name__ == "__main__":
-    main()
+if __name__ == "__main__": main()

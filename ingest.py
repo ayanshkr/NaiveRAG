@@ -1,5 +1,7 @@
 import chromadb, itertools as it, logging, pymupdf, os, requests
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from chromadb.utils import embedding_functions
 from dotenv import load_dotenv
 load_dotenv()
 logging.basicConfig(filename="ingest.log", filemode='w', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s',datefmt='%H:%M:%S')
@@ -36,11 +38,8 @@ class DocumentManager:
                 logger.error(f"Failed to download {url}: {e}")
 
 class Processor:
-    def __init__(self, chunk_size: int = int(os.getenv("CHUNK_SIZE", 1000)), 
-                 chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", 100)),
-                 seps: list[str] = ["\n\n","\n",".",","]):
+    def __init__(self, chunk_size: int = int(os.getenv("CHUNK_SIZE", 1000)), chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", 100)), seps: list[str] = ["\n\n","\n",".",","]):
         self.splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap, separators=seps)
-
     def process_pdf(self, file_path: str, filename: str):
         logger.info(f"Processing PDF: {filename}")
         try:
@@ -61,14 +60,12 @@ class VectorStore:
             logger.info(f"Initializing collection: {collection_name}")
             self.collection = self.client.get_collection(collection_name)
             self.client.delete_collection(collection_name)
-            self.collection = self.client.create_collection(collection_name)
-            logger.info("Fresh collection created.")
         except Exception as e:
             logger.error(f"Error: {e}")
-            self.collection = self.client.create_collection(collection_name)
-            logger.info(f"Collection {collection_name} created.")
+        self.collection = self.client.create_collection(collection_name, embedding_function=embedding_functions.SentenceTransformerEmbeddingFunction(model_name=os.getenv("EMBEDDING_MODEL",''),device="cuda")) #type: ignore
+        logger.info(f"Collection {collection_name} created.")
 
-    def upload_batches(self, data_generator, batch_size: int = 5461):
+    def upload_batches(self, data_generator, batch_size: int = 2000):
         id_gen = (str(i) for i in it.count())
         for batch_idx, batch in enumerate(it.batched(data_generator, batch_size)):
             chunks, metas = zip(*batch)
