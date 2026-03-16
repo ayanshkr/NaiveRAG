@@ -1,6 +1,5 @@
-import chromadb, logging, ollama, os, re, time
+import chromadb, logging, ollama, os, re, time, requests
 from chromadb.utils import embedding_functions
-from typing import Dict, Any
 from dotenv import load_dotenv
 
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
@@ -10,62 +9,59 @@ logger = logging.getLogger(__name__)
 
 class RAGSearcher:
     def __init__(self, db: str = os.getenv("DB_DIR",''), cl: str = os.getenv("COLLECTION_NAME",''), m: str = os.getenv("MODEL",'')):
-        self.m, self.p = m, "Answer based only on context. Cite as [chunk X]. If missing, say 'Not found in the provided PDFs.'"
-        logger.info(f"Init Searcher | Model: {m} | DB: {db}")
+        self.m, self.p = m, "Answer based ONLY on context. Cite as [chunk X]. If missing, say 'Not found.'"
+        logger.info(f"Init: {m}")
+        try: requests.get("http://127.0.0.1:11434/", timeout=2)
+        except: logger.error("Ollama Offline")
         ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=os.getenv("EMBEDDING_MODEL",''), device="cuda")
         self.coll = chromadb.PersistentClient(path=db).get_collection(cl, embedding_function=ef) # type: ignore
-        logger.info("Searcher ready.")
 
-    def retrieve(self, q: str, n: int = 6) -> Dict[str, Any]:
+    def retrieve(self, q: str, n: int = 6):
         t = time.time()
         res = self.coll.query(query_texts=[q], n_results=n)
-        logger.info(f"Retrieval: {len(res['ids'][0])} chunks in {time.time()-t:.4f}s")
+        logger.info(f"Retrieved {n} chunks in {time.time()-t:.4f}s")
         return dict(res)
 
-    def generate(self, q: str, ctx: str) -> str:
-        msgs = [{'role': 'system', 'content': self.p}, {'role': 'user', 'content': f"CONTEXT:\n{ctx}\n\nQUESTION: {q}"}]
-        logger.info(f"Ollama Start: {self.m} | Context: {len(ctx)} chars")
+    def generate(self, q: str, ctx: str):
         t = time.time()
         try:
-            r = ollama.chat(model=self.m, messages=msgs, options={'keep_alive': '10m'})
-            d, ec, ed = time.time()-t, r.get('eval_count', 0), r.get('eval_duration', 1)/1e9
-            logger.info(f"Ollama End | Total: {d:.2f}s | Pre-fill: {r.get('prompt_eval_duration',0)/1e9:.2f}s | {ec} tks @ {ec/ed:.2f} tps")
-            return r['message']['content']
+            r = ollama.chat(model=self.m, messages=[{'role': 'system', 'content': self.p}, {'role': 'user', 'content': f"CONTEXT:\n{ctx}\n\nQ: {q}"}], options={'num_ctx': 8192, 'keep_alive': '10m'})
+            d, ec, ed = time.time()-t, r.get('eval_count', 1), r.get('eval_duration', 1)/1e9
+            tps = ec/ed
+            if tps < 10: 
+                logger.warning(f"THROTTLE: {tps:.2f} tps. Applying 3s cooldown."); time.sleep(3)
+            logger.info(f"Ollama: {d:.2f}s | {tps:.2f} tps")
+            return r['message']['content'], tps
         except Exception as e:
-            logger.error(f"Ollama failed: {e}"); return "Error: Could not generate answer."
+            logger.error(f"Ollama error: {e}"); return "Error: LLM unreachable.", 0
 
 class CitationProcessor:
-    def __init__(self, res: Dict[str, Any]): self.ids, self.mts, self.dcs = res['ids'][0], res['metadatas'][0], res['documents'][0]
-
-    def format_ctx(self) -> str: return '\n\n'.join([f"Context from [chunk {i}]:\n{d}" for i, d in zip(self.ids, self.dcs)])
-
+    def __init__(self, res: dict): self.ids, self.mts, self.dcs = res['ids'][0], res['metadatas'][0], res['documents'][0]
+    def format_ctx(self): return '\n\n'.join([f"Context from [chunk {i}]:\n{d}" for i, d in zip(self.ids, self.dcs)])
     def finalize(self, raw: str):
         res, used = raw, []
         for m in sorted(re.finditer(r'\[?[Cc]hunk\s+(\d+)[^\]]*\]?', raw), key=lambda x: x.start(), reverse=True):
             cid = m.group(1)
-            try:
+            if cid in self.ids:
                 mt = self.mts[self.ids.index(cid)]; ct = f"[{mt['doc_name']}, p.{mt['page']}, chunk:{cid}]"
                 res = res[:m.start()] + ct + res[m.end():]
                 if ct not in used: used.append(ct)
-            except: res = res[:m.start()] + "[Invalid Citation]" + res[m.end():]
-        logger.info(f"Finalized: {len(used)} citations."); return res, used
+            else: 
+                logger.warning(f"Hallucination: Chunk {cid} not in results."); res = res[:m.start()] + "[Citation Error]" + res[m.end():]
+        return res, used
 
 def main():
     try: s = RAGSearcher()
     except Exception as e: return print(f"Init error: {e}")
-    n = 1
+    n, last_tps = 1, 0
     while True:
-        if not (q := input(f"\n### Question {n}: ").strip()): break
+        status = f" | Last: {last_tps:.1f} tps" if last_tps else ""
+        if not (q := input(f"\n### Q{n}{status}: ").strip()): break
         res = s.retrieve(q); prc = CitationProcessor(res)
-        txt, cits = prc.finalize(s.generate(q, prc.format_ctx()))
-        print(f"\n{'='*50}\n**Answer:**\n{txt.strip()}")
-        if cits:
-            print("\n**Citations:**")
-            for c in cits: print(f"• {c}")
-        print("\n**Retrieved Evidence:**")
-        for i, (cid, mt, dc) in enumerate(zip(prc.ids, prc.mts, prc.dcs), 1):
-            ct = f"[{mt['doc_name']}, p.{mt['page']}, chunk:{cid}]"
-            print(f"{i}. {ct}{' [USED]' if any(ct in c for c in cits) else ' [UNUSED]'}\n   \"{dc[:120].replace(chr(10), ' ')}...\"")
-        print("="*50); n += 1
+        raw, last_tps = s.generate(q, prc.format_ctx())
+        txt, cits = prc.finalize(raw)
+        print(f"\n{'='*50}\n**Answer:**\n{txt.strip()}\n\n**Citations:**")
+        [print(f"• {c}") for c in cits] if cits else print("None found.")
+        print(f"{'='*50}"); n += 1
 
 if __name__ == "__main__": main()
